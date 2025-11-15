@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "616832457082",
+    "project_id": "zomo-1f300",
+    "storage_bucket": "zomo-1f300.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:616832457082:android:82d59d0c6194f38eff5ec3",
+        "android_client_info": {
+          "package_name": "com.example.zomogoldapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrm1tqo6awzYAmSqGPvL13MJNuocETzag"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
