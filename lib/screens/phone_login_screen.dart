@@ -1,5 +1,7 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'otp_verification_screen.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({super.key});
@@ -17,15 +19,55 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     super.dispose();
   }
 
-  void _sendOtp() {
+  Future<void> _sendOtp() async {
     final phone = _phoneController.text.trim();
-    if (phone.isEmpty || phone.length < 10) {
+
+    if (phone.isEmpty || phone.length != 10) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter a valid phone number')),
       );
       return;
     }
-    Navigator.pushNamed(context, '/otp', arguments: phone);
+
+    final fullPhone = "+91$phone";
+
+    try {
+      FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: fullPhone,
+
+        verificationCompleted: (PhoneAuthCredential credential) {},
+
+        verificationFailed: (FirebaseAuthException e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e.message ?? "Verification failed")),
+          );
+        },
+
+        codeSent: (String verificationId, int? resendToken) {
+        },
+
+        codeAutoRetrievalTimeout: (String verificationId) {},
+      );
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationScreen(
+            verificationId: "",
+          ),
+        ),
+      );
+
+    } catch (e) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationScreen(
+            verificationId: "",
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -49,8 +91,10 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 child: Text(
                   "Login as guest",
@@ -112,7 +156,9 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                           ),
                         ),
                         prefixIconConstraints: const BoxConstraints(
-                            minWidth: 0, minHeight: 0),
+                          minWidth: 0,
+                          minHeight: 0,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,

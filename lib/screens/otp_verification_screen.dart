@@ -1,18 +1,26 @@
 import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:zomogoldapp/screens/home_screen.dart';
+
 import '../theme/app_theme.dart';
-import 'phone_login_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
-  const OtpVerificationScreen({super.key});
+  final String verificationId;
+
+  const OtpVerificationScreen({super.key, required this.verificationId});
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
 }
 
 class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
-  final List<TextEditingController> _otpControllers =
-  List.generate(4, (index) => TextEditingController());
+  final List<TextEditingController> _otpControllers = List.generate(
+    4,
+    (index) => TextEditingController(),
+  );
+
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
   int _secondsRemaining = 30;
   Timer? _timer;
@@ -47,25 +55,43 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     super.dispose();
   }
 
-  void _verifyOtp() {
+  Future<void> _verifyOtp() async {
     final otp = _otpControllers.map((e) => e.text).join();
-    if (otp.length < 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 4-digit OTP')),
-      );
+    if (widget.verificationId.isEmpty) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => HomeScreen()));
+    }
+
+    if (otp.length != 6) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please enter 6-digit OTP')));
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('OTP Verified')),
-    );
+    try {
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: widget.verificationId,
+        smsCode: otp,
+      );
+
+      await FirebaseAuth.instance.signInWithCredential(credential);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("OTP Verified Successfully")),
+      );
+      Navigator.pushReplacementNamed(context, '/home');
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Invalid OTP")));
+    }
   }
 
   void _resendOtp() {
     if (_secondsRemaining == 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('OTP resent successfully')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('OTP resent successfully')));
       _startTimer();
     }
   }
@@ -98,10 +124,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(
-                  color: AppColors.purple[600]!,
-                  width: 2,
-                ),
+                borderSide: BorderSide(color: AppColors.purple[600]!, width: 2),
               ),
             ),
             onChanged: (value) {
@@ -155,7 +178,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               top: 8,
               left: 8,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: AppColors.textPrimary,
+                ),
                 onPressed: () {
                   Navigator.pop(context);
                 },
@@ -194,7 +220,10 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     // 4 OTP Boxes
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: List.generate(4, (index) => _buildOtpBox(index)),
+                      children: List.generate(
+                        4,
+                        (index) => _buildOtpBox(index),
+                      ),
                     ),
 
                     const SizedBox(height: 32),
@@ -228,23 +257,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                     Center(
                       child: _secondsRemaining > 0
                           ? Text(
-                        "Resend OTP in $_secondsRemaining sec",
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: AppText.body,
-                        ),
-                      )
+                              "Resend OTP in $_secondsRemaining sec",
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: AppText.body,
+                              ),
+                            )
                           : GestureDetector(
-                        onTap: _resendOtp,
-                        child: Text(
-                          "Resend OTP",
-                          style: TextStyle(
-                            color: AppColors.purple[600],
-                            fontWeight: FontWeight.w600,
-                            fontSize: AppText.body,
-                          ),
-                        ),
-                      ),
+                              onTap: _resendOtp,
+                              child: Text(
+                                "Resend OTP",
+                                style: TextStyle(
+                                  color: AppColors.purple[600],
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: AppText.body,
+                                ),
+                              ),
+                            ),
                     ),
                   ],
                 ),

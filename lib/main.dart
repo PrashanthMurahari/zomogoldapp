@@ -1,10 +1,24 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'screens/otp_verification_screen.dart';
 import 'screens/phone_login_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (kIsWeb) {
+    await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: "AIzaSyBFTAwxOc-aXanFqeRMKzmYKKJj5b_zdso",
+        appId: "1:616832457082:web:9be2cc9543707eceff5ec3",
+        messagingSenderId: "616832457082",
+        projectId: "zomo-1f300",
+      ),
+    );
+  } else {
+    await Firebase.initializeApp();
+  }
   runApp(const MyApp());
 }
 
@@ -18,10 +32,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       initialRoute: '/',
-      routes: {
-        '/': (context) => const PhoneLoginScreen(),
-        '/otp': (context) => const OtpVerificationScreen(),
-      },
+      routes: {'/': (context) => const PhoneLoginScreen()},
     );
   }
 }
