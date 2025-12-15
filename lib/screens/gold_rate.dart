@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-const Color _kPrimaryColor = Color(0xFF673AB7); // Dark Purple for main buttons
-const Color _kBackgroundColor = Color(0xFFF3F0F9); // Light Lilac background
+import '../dao/product_rate_dao.dart';
+import '../models/product_rate_model.dart';
+
+const Color _kPrimaryColor = Color(0xFF673AB7);
+const Color _kBackgroundColor = Color(0xFFF3F0F9);
 const Color _kCardColor = Colors.white;
 const double _kCardRadius = 12.0;
 const TextStyle _kLabelStyle = TextStyle(
@@ -32,6 +35,10 @@ class GoldRatesScreen extends StatefulWidget {
 }
 
 class _GoldRatesScreenState extends State<GoldRatesScreen> {
+  final ProductRateDao _rateDao = ProductRateDao();
+  final String _currentUserId =
+      'admin'; // TODO: Replace with actual user authentication ID
+
   String goldPrice = 'N/A';
   String goldUpdateTimestamp = 'N/A';
   String silverPrice = 'N/A';
@@ -55,24 +62,50 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
     }
 
     try {
-      String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      String apiTimestamp = DateTime.now().millisecondsSinceEpoch.toString();
       final url = Uri.parse(
-        'https://statewisebcast.dpgold.in:7768/VOTSBroadcastStreaming/Services/xml/GetLiveRateByTemplateID/dpgold?_= $timestamp',
+        'https://statewisebcast.dpgold.in:7768/VOTSBroadcastStreaming/Services/xml/GetLiveRateByTemplateID/dpgold?_= $apiTimestamp',
       );
       final response = await http.get(url);
+
       if (response.statusCode == 200 && response.body.isNotEmpty) {
-        String newGoldPrice = 'No gold data found';
-        String newSilverPrice = 'No silver data found';
-        final rates = _parseLiveRates(response.body);
-        newGoldPrice = rates['goldPrice'] ?? newGoldPrice;
-        newSilverPrice = rates['silverPrice'] ?? newSilverPrice;
+        final Map<String, dynamic> ratesData = _parseLiveRates(response.body);
+
+        final String formattedGoldPrice = ratesData['goldPriceFormatted'];
+        final String formattedSilverPrice = ratesData['silverPriceFormatted'];
+        final double goldPriceRaw = ratesData['goldPriceRaw'];
+        final double silverPriceRaw = ratesData['silverPriceRaw'];
 
         final now = DateTime.now();
+        final int millisecondTimestamp = now.millisecondsSinceEpoch;
+        if (goldPriceRaw > 0) {
+          final goldRateModel = ProductRateModel(
+            id: 'GOLD_$millisecondTimestamp',
+            productType: 'GOLD',
+            price: goldPriceRaw,
+            unit: 'per 10g',
+            userId: _currentUserId,
+            timestamp: millisecondTimestamp,
+          );
+          await _rateDao.addRateEntry(goldRateModel);
+        }
+
+        if (silverPriceRaw > 0) {
+          final silverRateModel = ProductRateModel(
+            id: 'SILVER_$millisecondTimestamp',
+            productType: 'SILVER',
+            price: silverPriceRaw,
+            unit: 'per KG',
+            userId: _currentUserId,
+            timestamp: millisecondTimestamp,
+          );
+          await _rateDao.addRateEntry(silverRateModel);
+        }
 
         if (mounted) {
           setState(() {
-            goldPrice = newGoldPrice;
-            silverPrice = newSilverPrice;
+            goldPrice = formattedGoldPrice;
+            silverPrice = formattedSilverPrice;
             goldUpdateTimestamp =
                 'Last updated on ${TimeOfDay.fromDateTime(now).format(context)}, ${now.day} ${monthName(now.month)} ${now.year}';
             silverUpdateTimestamp =
@@ -96,30 +129,38 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
     }
   }
 
-  Map<String, String> _parseLiveRates(String body) {
-    String foundGold = 'N/A';
-    String foundSilver = 'N/A';
+  Map<String, dynamic> _parseLiveRates(String body) {
+    String foundGoldFormatted = 'N/A';
+    double foundGoldRaw = 0.0;
+    String foundSilverFormatted = 'N/A';
+    double foundSilverRaw = 0.0;
     List<String> lines = body.split('\n');
+
     for (String line in lines) {
       if (line.contains('GOLD') &&
           line.contains('999') &&
           line.contains('/ 10 Gm')) {
         List<String> cols = line.split('\t');
         if (cols.length >= 6) {
-          foundGold = '₹${_formatPrice(cols[3])}';
+          foundGoldRaw = double.tryParse(cols[3]) ?? 0.0;
+          foundGoldFormatted = '₹${_formatPrice(cols[3])}';
         }
-      }
-
-      if (line.contains('SILVER 30 KG PAN India')) {
+      } else if (line.contains('SILVER 30 KG PAN India')) {
         List<String> cols = line.split('\t');
         if (cols.length >= 6) {
-          foundSilver = '₹${_formatPrice(cols[3])}';
+          foundSilverRaw = double.tryParse(cols[3]) ?? 0.0;
+          foundSilverFormatted = '₹${_formatPrice(cols[3])}';
         }
       }
-      if (foundGold != 'N/A' && foundSilver != 'N/A') break;
+      if (foundGoldRaw > 0 && foundSilverRaw > 0) break;
     }
 
-    return {'goldPrice': foundGold, 'silverPrice': foundSilver};
+    return {
+      'goldPriceFormatted': foundGoldFormatted,
+      'goldPriceRaw': foundGoldRaw,
+      'silverPriceFormatted': foundSilverFormatted,
+      'silverPriceRaw': foundSilverRaw,
+    };
   }
 
   String _formatPrice(String price) {
