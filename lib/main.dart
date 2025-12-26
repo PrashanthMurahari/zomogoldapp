@@ -1,6 +1,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 
 import 'screens/phone_login_screen.dart';
 import 'screens/gold_rate.dart';
@@ -32,6 +34,13 @@ class MyApp extends StatelessWidget {
       title: 'Phone Login Demo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        FlutterQuillLocalizations.delegate, // Important for Quill
+      ],
+      supportedLocales: const [Locale('en', 'US')],
       initialRoute: '/',
 
       routes: {'/': (context) => const PhoneLoginScreen()},

@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
 
 const Color primaryPurple = Color(0xFF7F55B5);
@@ -23,21 +23,47 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   static const int maxImages = 5;
 
   String _selectedMetal = 'Platinum';
-  final List<String> _metalOptions = ['Platinum', 'Gold', 'Silver', 'Copper'];
+  final List<String> _metalOptions = [
+    'Select',
+    'Platinum',
+    'Gold',
+    'Silver',
+    'Diamond',
+  ];
 
   final TextEditingController _stoneWeightController = TextEditingController();
   final TextEditingController _stoneCostController = TextEditingController();
   final TextEditingController _makingChargesController =
       TextEditingController();
   final TextEditingController _discountController = TextEditingController();
-  final TextEditingController _productDetailsController =
-      TextEditingController();
-  final TextEditingController _specificationsController =
-      TextEditingController();
+
+  late QuillController _productDetailsController;
+  late QuillController _specificationsController;
 
   bool _hallmarkAvailable = false;
   String _weightUnit = 'Select';
   String _makingChargeType = '%';
+
+  @override
+  void initState() {
+    super.initState();
+    _productDetailsController = QuillController.basic();
+    _specificationsController = QuillController.basic();
+    _startAutoSlide();
+  }
+
+  @override
+  void dispose() {
+    _autoSlideTimer?.cancel();
+    _pageController.dispose();
+    _stoneWeightController.dispose();
+    _stoneCostController.dispose();
+    _makingChargesController.dispose();
+    _discountController.dispose();
+    _productDetailsController.dispose();
+    _specificationsController.dispose();
+    super.dispose();
+  }
 
   void _startAutoSlide() {
     _autoSlideTimer?.cancel();
@@ -106,7 +132,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   Widget _buildTextField(
     TextEditingController controller, {
     int maxLines = 1,
-    String? prefixText,
     String? hint,
   }) {
     return TextField(
@@ -114,7 +139,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       maxLines: maxLines,
       decoration: InputDecoration(
         hintText: hint,
-        prefixText: prefixText,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 12,
@@ -151,6 +175,48 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               .toList(),
           onChanged: onChanged,
         ),
+      ),
+    );
+  }
+
+  Widget _buildRichTextEditor(QuillController controller, String hint) {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          QuillSimpleToolbar(
+            controller: controller,
+            config: const QuillSimpleToolbarConfig(
+              multiRowsDisplay: false,
+              showFontFamily: false,
+              showFontSize: false,
+              showSubscript: false,
+              showSuperscript: false,
+              showSmallButton: true,
+              showSearchButton: false,
+              showCodeBlock: false,
+              showInlineCode: false,
+            ),
+          ),
+          const Divider(height: 1),
+          Container(
+            height: 150,
+            padding: const EdgeInsets.all(12),
+            child: QuillEditor.basic(
+              controller: controller,
+              config: QuillEditorConfig(
+                placeholder: hint,
+                autoFocus: false,
+                expands: false,
+                scrollable: true,
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -193,10 +259,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         SizedBox(height: 12),
                         Text(
                           "Upload Product Pictures",
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: TextStyle(color: Colors.grey),
                         ),
                       ],
                     )
@@ -221,7 +284,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     if (newIndex > oldIndex) newIndex--;
                     final item = _extraImages.removeAt(oldIndex);
                     _extraImages.insert(newIndex, item);
-
                     _currentPage = newIndex;
                     _pageController.jumpToPage(_currentPage);
                   });
@@ -230,11 +292,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   for (int index = 0; index < _extraImages.length; index++)
                     GestureDetector(
                       key: ValueKey(_extraImages[index]),
-                      onTap: () => _pageController.animateToPage(
-                        index,
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                      ),
+                      onTap: () => _pageController.jumpToPage(index),
                       child: Container(
                         margin: const EdgeInsets.only(right: 12),
                         width: 70,
@@ -253,7 +311,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                         ),
                       ),
                     ),
-
                   if (_extraImages.length < maxImages)
                     Container(
                       key: const ValueKey("add_button"),
@@ -300,15 +357,27 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   'Select',
                   'Gram',
                   'Carat',
+                  'Cents',
+                  'Piece',
                 ], (v) => setState(() => _weightUnit = v!)),
               ],
             ),
 
             _buildSectionLabel("Stone Cost"),
-            _buildTextField(
-              _stoneCostController,
-              prefixText: "₹ ",
-              hint: "Enter cost",
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTextField(_stoneCostController, hint: "0.00"),
+                ),
+                const SizedBox(width: 12),
+                _buildDropdown(_weightUnit, [
+                  'Select',
+                  'Gram',
+                  'Carat',
+                  'Cents',
+                  'Piece',
+                ], (v) => setState(() => _weightUnit = v!)),
+              ],
             ),
 
             _buildSectionLabel("Making Charges"),
@@ -332,17 +401,15 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             _buildTextField(_discountController, hint: "0"),
 
             _buildSectionLabel("Product Details"),
-            _buildTextField(
+            _buildRichTextEditor(
               _productDetailsController,
-              maxLines: 3,
-              hint: "Description of the product...",
+              "Enter product story, highlights, etc...",
             ),
 
             _buildSectionLabel("Specifications"),
-            _buildTextField(
+            _buildRichTextEditor(
               _specificationsController,
-              maxLines: 3,
-              hint: "Size, Purity, etc.",
+              "Size, Purity, Clarity, etc...",
             ),
 
             const SizedBox(height: 16),
@@ -355,9 +422,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   Checkbox(
                     value: _hallmarkAvailable,
                     activeColor: primaryPurple,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(4),
-                    ),
                     onChanged: (v) => setState(() => _hallmarkAvailable = v!),
                   ),
                   const Text(
@@ -367,15 +431,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 100),
           ],
         ),
       ),
-
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           color: Colors.white,
           boxShadow: [
             BoxShadow(
@@ -386,7 +448,25 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           ],
         ),
         child: ElevatedButton(
-          onPressed: () => debugPrint("Product Saved!"),
+          onPressed: () {
+            final productDetailsJson = _productDetailsController.document
+                .toDelta()
+                .toJson();
+            final specificationsJson = _specificationsController.document
+                .toDelta()
+                .toJson();
+
+            debugPrint("Details JSON: $productDetailsJson");
+            debugPrint("Specs JSON: $specificationsJson");
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  "Product details and specifications saved as JSON!",
+                ),
+              ),
+            );
+          },
           style: ElevatedButton.styleFrom(
             backgroundColor: primaryPurple,
             foregroundColor: Colors.white,
@@ -394,27 +474,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
-            elevation: 0,
           ),
           child: const Text(
-            "Save",
+            "Save Product",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _autoSlideTimer?.cancel();
-    _pageController.dispose();
-    _stoneWeightController.dispose();
-    _stoneCostController.dispose();
-    _makingChargesController.dispose();
-    _discountController.dispose();
-    _productDetailsController.dispose();
-    _specificationsController.dispose();
-    super.dispose();
   }
 }
