@@ -90,14 +90,6 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
       return;
     }
 
-    if (livePrice > 0) {
-      double tolerance = livePrice * 0.05;
-      if ((manualPrice - livePrice).abs() > tolerance) {
-        _showSnackBar('Rate is too far from live market rate!');
-        return;
-      }
-    }
-
     try {
       final int timestamp = DateTime.now().millisecondsSinceEpoch;
       final model = ProductRateModel(
@@ -144,30 +136,29 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
           ),
         ],
       ),
-
     );
   }
 
   Widget _buildRateUpdateView() {
-    return Column(
-      children: [
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 220,
-          child: PageView(
-            controller: _pageController,
-            onPageChanged: (index) {
-              setState(() => selectedMetal = index == 0 ? 'GOLD' : 'SILVER');
-            },
-            children: [
-              _buildRateCard('GOLD', goldPriceFormatted, 'per 1g'),
-              _buildRateCard('SILVER', silverPriceFormatted, 'per KG'),
-            ],
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 280,
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) {
+                setState(() => selectedMetal = index == 0 ? 'GOLD' : 'SILVER');
+              },
+              children: [
+                _buildRateCard('GOLD', goldPriceFormatted, 'per 1g'),
+                _buildRateCard('SILVER', silverPriceFormatted, 'per KG'),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 20),
-        Expanded(
-          child: Padding(
+          const SizedBox(height: 20),
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Column(
               children: [
@@ -182,15 +173,15 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
                 _buildFormTextField(
                   _manualRateController,
                   'Update new rate (Per ${selectedMetal == 'GOLD' ? 'gram/tola' : 'kg'})',
-                  keyboard: TextInputType.number,
+                  keyboard: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                 ),
                 const SizedBox(height: 12),
-                Expanded(
-                  child: _buildFormTextField(
-                    _remarksController,
-                    'Remarks',
-                    isMultiline: true,
-                  ),
+                _buildFormTextField(
+                  _remarksController,
+                  'Remarks',
+                  isMultiline: true,
                 ),
                 const SizedBox(height: 16),
                 _buildUpdateRateButton(),
@@ -198,8 +189,8 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -255,8 +246,8 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
     return TextField(
       controller: controller,
       keyboardType: keyboard,
-      maxLines: isMultiline ? null : 1,
-      expands: isMultiline,
+      maxLines: isMultiline ? 13 : 1,
+      minLines: isMultiline ? 13 : 1,
       textAlignVertical: isMultiline
           ? TextAlignVertical.top
           : TextAlignVertical.center,
@@ -321,8 +312,8 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
 
   Widget _buildRateCard(String metal, String price, String unit) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.all(24),
+      margin: const EdgeInsets.symmetric(horizontal: 10),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -331,37 +322,61 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
         ],
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        spacing: 16,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'CURRENT $metal RATE',
-                style: const TextStyle(
-                  color: Colors.black54,
-                  fontWeight: FontWeight.bold,
+          Text(
+            'CURRENT $metal RATE',
+            style: const TextStyle(
+              color: Colors.black54,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          if (isLoading)
+            SizedBox(
+              height: 43,
+              child: Center(
+                child: SizedBox(
+                  width: 30,
+                  height: 30,
+                  child: CircularProgressIndicator(
+                    color: _kPrimaryColor,
+                    strokeWidth: 3,
+                  ),
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.history, color: _kPrimaryColor),
-                onPressed: fetchLiveRates,
-              ),
-            ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  price,
+                  style: const TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333333),
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                  icon: const Icon(
+                    Icons.refresh,
+                    color: _kPrimaryColor,
+                    size: 30,
+                  ),
+                  onPressed: fetchLiveRates,
+                ),
+              ],
+            ),
+
+          Text(
+            unit,
+            style: const TextStyle(color: Colors.black54, fontSize: 16),
           ),
-          const Spacer(),
-          if (isLoading)
-            const CircularProgressIndicator(color: _kPrimaryColor)
-          else ...[
-            Text(
-              price,
-              style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              unit,
-              style: const TextStyle(color: Colors.black54, fontSize: 16),
-            ),
-          ],
-          const Spacer(),
           Text(
             updateTimestamp,
             style: const TextStyle(color: Colors.black54, fontSize: 12),
