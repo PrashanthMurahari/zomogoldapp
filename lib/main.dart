@@ -40,7 +40,7 @@ class MyApp extends StatelessWidget {
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
-        FlutterQuillLocalizations.delegate, // Important for Quill
+        FlutterQuillLocalizations.delegate,
       ],
       supportedLocales: const [Locale('en', 'US')],
       initialRoute: '/',

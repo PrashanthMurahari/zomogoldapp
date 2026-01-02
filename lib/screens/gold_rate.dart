@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:zomogoldapp/screens/product_details.dart';
 
@@ -22,6 +23,7 @@ class GoldRatesScreen extends StatefulWidget {
 
 class _GoldRatesScreenState extends State<GoldRatesScreen> {
   AdminTab _activeTab = AdminTab.rateUpdate;
+  final ScrollController _scrollController = ScrollController();
   final PageController _pageController = PageController();
   final ProductRateDao _rateDao = ProductRateDao();
 
@@ -40,6 +42,20 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
   void initState() {
     super.initState();
     fetchLiveRates();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  void _handleScroll() {
+    double offset = _scrollController.offset;
+    double maxScroll = _scrollController.position.maxScrollExtent;
+
+    String newMetal = offset > (maxScroll / 2) ? 'SILVER' : 'GOLD';
+
+    if (newMetal != selectedMetal) {
+      setState(() {
+        selectedMetal = newMetal;
+      });
+    }
   }
 
   @override
@@ -138,21 +154,51 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
   }
 
   Widget _buildRateUpdateView() {
+    double screenWidth = MediaQuery.of(context).size.width;
     return SingleChildScrollView(
       child: Column(
         children: [
           const SizedBox(height: 10),
-          SizedBox(
-            height: 280,
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: (index) {
-                setState(() => selectedMetal = index == 0 ? 'GOLD' : 'SILVER');
-              },
-              children: [
-                _buildRateCard('GOLD', goldPriceFormatted, 'per 1g'),
-                _buildRateCard('SILVER', silverPriceFormatted, 'per KG'),
-              ],
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: RawScrollbar(
+              controller: _scrollController,
+              thumbVisibility: true,
+              thickness: 8,
+              radius: const Radius.circular(20),
+              thumbColor: _kPrimaryColor.withOpacity(0.9),
+              interactive: true,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20.0),
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  scrollDirection: Axis.horizontal,
+                  physics: const PageScrollPhysics(),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: screenWidth - 32,
+                        height: 280,
+                        child: _buildRateCard(
+                          'GOLD',
+                          goldPriceFormatted,
+                          'per 1g',
+                        ),
+                      ),
+                      SizedBox(
+                        width: screenWidth - 32,
+                        height: 280,
+                        child: _buildRateCard(
+                          'SILVER',
+                          silverPriceFormatted,
+                          'per KG',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 20),
@@ -244,8 +290,12 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
     return TextField(
       controller: controller,
       keyboardType: keyboard,
-      maxLines: isMultiline ? 13 : 1,
-      minLines: isMultiline ? 13 : 1,
+      inputFormatters:
+          keyboard == const TextInputType.numberWithOptions(decimal: true)
+          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+          : null,
+      maxLines: isMultiline ? 10 : 1,
+      minLines: isMultiline ? 10 : 1,
       textAlignVertical: isMultiline
           ? TextAlignVertical.top
           : TextAlignVertical.center,

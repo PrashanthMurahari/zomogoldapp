@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -25,9 +26,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   final PageController _pageController = PageController();
   Timer? _autoSlideTimer;
   int _currentPage = 0;
-  static const int maxImages = 5;
+  static const int maxImages = 10;
 
-  String _selectedMetal = 'Platinum';
+  String _selectedMetal = 'Select';
   final List<String> _metalOptions = [
     'Select',
     'Platinum',
@@ -46,7 +47,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   late QuillController _specificationsController;
   final FocusNode _productDetailsFocus = FocusNode();
   final FocusNode _specificationsFocus = FocusNode();
-
 
   bool _hallmarkAvailable = false;
   String _weightUnit = 'Select';
@@ -91,28 +91,66 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   }
 
   Future<void> _pickNewImage() async {
-    if (_extraImages.length >= maxImages) return;
+    if (_extraImages.length >= maxImages) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Maximum of 10 images allowed")),
+      );
+      return;
+    }
 
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-
-    if (pickedFile == null) return;
-
-    final data = kIsWeb
-        ? await pickedFile.readAsBytes()
-        : File(pickedFile.path);
-
-    setState(() {
-      _extraImages.add(data);
-    });
-
+    final List<XFile> pickedFiles = await picker.pickMultiImage();
+    if (pickedFiles.isEmpty) return;
+    int availableSlots = maxImages - _extraImages.length;
+    List<XFile> filesToAdd = pickedFiles;
+    bool limitExceeded = false;
+    if (pickedFiles.length > availableSlots) {
+      filesToAdd = pickedFiles.sublist(0, availableSlots);
+      limitExceeded = true;
+    }
+    for (var pickedFile in filesToAdd) {
+      final data = kIsWeb
+          ? await pickedFile.readAsBytes()
+          : File(pickedFile.path);
+      setState(() {
+        _extraImages.add(data);
+      });
+    }
+    if (limitExceeded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            "Only $availableSlots more images could be added (Limit: $maxImages)",
+          ),
+        ),
+      );
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_pageController.hasClients) {
+      if (_pageController.hasClients && _extraImages.isNotEmpty) {
         _currentPage = _extraImages.length - 1;
-        _pageController.jumpToPage(_currentPage);
+        _pageController.animateToPage(
+          _currentPage,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+    _startAutoSlide();
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _extraImages.removeAt(index);
+      if (_extraImages.isEmpty) {
+        _currentPage = 0;
+      } else if (_currentPage >= _extraImages.length) {
+        _currentPage = _extraImages.length - 1;
       }
     });
 
+    if (_pageController.hasClients && _extraImages.isNotEmpty) {
+      _pageController.jumpToPage(_currentPage);
+    }
     _startAutoSlide();
   }
 
@@ -123,6 +161,56 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
       return Image.file(img, fit: BoxFit.cover);
     }
     return Container(color: Colors.grey.shade200);
+  }
+
+  Widget _buildThumbnailItem(int index) {
+    return ReorderableDragStartListener(
+      key: ValueKey(_extraImages[index]),
+      index: index,
+      child: Stack(
+        children: [
+          GestureDetector(
+            onTap: () {
+              setState(() => _currentPage = index);
+              _pageController.jumpToPage(index);
+            },
+            child: Container(
+              margin: const EdgeInsets.only(right: 12, top: 8),
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: _currentPage == index
+                      ? primaryPurple
+                      : Colors.grey.shade300,
+                  width: _currentPage == index ? 2 : 1,
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: _displayImage(_extraImages[index]),
+              ),
+            ),
+          ),
+          Positioned(
+            right: 4,
+            top: 0,
+            child: GestureDetector(
+              onTap: () => _removeImage(index),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.red,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(4),
+                child: const Icon(Icons.close, size: 12, color: Colors.white),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSectionLabel(String label) {
@@ -143,10 +231,16 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     TextEditingController controller, {
     int maxLines = 1,
     String? hint,
+    TextInputType keyboard = TextInputType.text,
   }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      keyboardType: keyboard,
+      inputFormatters:
+          keyboard == const TextInputType.numberWithOptions(decimal: true)
+          ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))]
+          : null,
       decoration: InputDecoration(
         hintText: hint,
         contentPadding: const EdgeInsets.symmetric(
@@ -189,42 +283,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     );
   }
 
-  Future<List<String>> _uploadImages(String productId) async {
-    List<String> downloadUrls = [];
-
-    for (int i = 0; i < _extraImages.length; i++) {
-      try {
-        final ref = FirebaseStorage.instance.ref(
-          "products/$productId/image_$i.jpg",
-        );
-
-        UploadTask uploadTask;
-
-        if (kIsWeb) {
-          uploadTask = ref.putData(_extraImages[i]);
-        } else {
-          uploadTask = ref.putFile(_extraImages[i]);
-        }
-
-        final snapshot = await uploadTask;
-        final url = await snapshot.ref.getDownloadURL();
-
-        debugPrint("✅ IMAGE UPLOADED: $url");
-        downloadUrls.add(url);
-      } catch (e, s) {
-        debugPrint("❌ STORAGE ERROR: $e");
-        debugPrint("$s");
-      }
-    }
-
-    return downloadUrls;
-  }
-
   Widget _buildRichTextEditor(
-      QuillController controller,
-      String hint,
-      FocusNode focusNode,
-      ) {
+    QuillController controller,
+    String hint,
+    FocusNode focusNode,
+  ) {
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: Colors.grey.shade300),
@@ -271,13 +334,30 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     );
   }
 
+  double _toDouble(TextEditingController c) =>
+      double.tryParse(c.text.trim()) ?? 0.0;
 
-  double _toDouble(TextEditingController c) {
-    return double.tryParse(c.text.trim()) ?? 0.0;
-  }
+  String _quillToJson(QuillController controller) =>
+      jsonEncode(controller.document.toDelta().toJson());
 
-  String _quillToJson(QuillController controller) {
-    return jsonEncode(controller.document.toDelta().toJson());
+  Future<List<String>> _uploadImages(String productId) async {
+    List<String> downloadUrls = [];
+    for (int i = 0; i < _extraImages.length; i++) {
+      try {
+        final ref = FirebaseStorage.instance.ref(
+          "products/$productId/image_$i.jpg",
+        );
+        UploadTask uploadTask = kIsWeb
+            ? ref.putData(_extraImages[i])
+            : ref.putFile(_extraImages[i]);
+        final snapshot = await uploadTask;
+        final url = await snapshot.ref.getDownloadURL();
+        downloadUrls.add(url);
+      } catch (e) {
+        debugPrint("❌ STORAGE ERROR: $e");
+      }
+    }
+    return downloadUrls;
   }
 
   @override
@@ -307,20 +387,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: _extraImages.isEmpty
-                  ? Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Icon(
-                          Icons.add_a_photo_outlined,
-                          size: 48,
-                          color: Colors.grey,
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          "Upload Product Pictures",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ],
+                  ? const Center(
+                      child: Text(
+                        "Upload Product Pictures",
+                        style: TextStyle(color: Colors.grey),
+                      ),
                     )
                   : ClipRRect(
                       borderRadius: BorderRadius.circular(12),
@@ -334,54 +405,76 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             ),
 
             const SizedBox(height: 12),
-            SizedBox(
-              height: 80,
-              child: ReorderableListView(
-                scrollDirection: Axis.horizontal,
-                onReorder: (oldIndex, newIndex) {
-                  setState(() {
-                    if (newIndex > oldIndex) newIndex--;
-                    final item = _extraImages.removeAt(oldIndex);
-                    _extraImages.insert(newIndex, item);
-                    _currentPage = newIndex;
-                    _pageController.jumpToPage(_currentPage);
-                  });
-                },
-                children: [
-                  for (int index = 0; index < _extraImages.length; index++)
+            if (_extraImages.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "${_extraImages.length} / $maxImages Images",
+                      style: TextStyle(
+                        color: Colors.grey.shade600,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     GestureDetector(
-                      key: ValueKey(_extraImages[index]),
-                      onTap: () => _pageController.jumpToPage(index),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 12),
-                        width: 70,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: _currentPage == index
-                                ? primaryPurple
-                                : Colors.grey.shade300,
-                            width: _currentPage == index ? 2 : 1,
-                          ),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6),
-                          child: _displayImage(_extraImages[index]),
+                      child: TextButton(
+                        onPressed: () {
+                          setState(() {
+                            _extraImages.clear();
+                            _currentPage = 0;
+                          });
+                        },
+                        child: const Text(
+                          "Clear All",
+                          style: TextStyle(color: Colors.purple),
                         ),
                       ),
                     ),
-                  if (_extraImages.length < maxImages)
-                    Container(
-                      key: const ValueKey("add_button"),
-                      width: 70,
-                      margin: const EdgeInsets.only(right: 12),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
+                  ],
+                ),
+              ),
+
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  if (_extraImages.isNotEmpty)
+                    SizedBox(
+                      height: 90,
+                      child: ReorderableListView(
+                        scrollDirection: Axis.horizontal,
+                        shrinkWrap: true,
+                        buildDefaultDragHandles: false,
+                        onReorder: (oldIndex, newIndex) {
+                          setState(() {
+                            if (newIndex > oldIndex) newIndex--;
+                            final item = _extraImages.removeAt(oldIndex);
+                            _extraImages.insert(newIndex, item);
+                            _currentPage = newIndex;
+                            _pageController.jumpToPage(_currentPage);
+                          });
+                        },
+                        children: [
+                          for (int i = 0; i < _extraImages.length; i++)
+                            _buildThumbnailItem(i),
+                        ],
                       ),
-                      child: IconButton(
-                        icon: const Icon(Icons.add, color: Colors.grey),
-                        onPressed: _pickNewImage,
+                    ),
+                  if (_extraImages.length < maxImages)
+                    GestureDetector(
+                      onTap: _pickNewImage,
+                      child: Container(
+                        width: 70,
+                        height: 70,
+                        margin: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(Icons.add, color: Colors.grey),
                       ),
                     ),
                 ],
@@ -409,7 +502,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             Row(
               children: [
                 Expanded(
-                  child: _buildTextField(_stoneWeightController, hint: "0.00"),
+                  child: _buildTextField(
+                    _stoneWeightController,
+                    hint: "0.00",
+                    keyboard: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 _buildDropdown(_weightUnit, [
@@ -426,7 +525,13 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             Row(
               children: [
                 Expanded(
-                  child: _buildTextField(_stoneCostController, hint: "0.00"),
+                  child: _buildTextField(
+                    _stoneCostController,
+                    hint: "0.00",
+                    keyboard: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 _buildDropdown(_weightUnit, [
@@ -446,6 +551,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   child: _buildTextField(
                     _makingChargesController,
                     hint: "Charge amount",
+                    keyboard: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -457,7 +565,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             ),
 
             _buildSectionLabel("Discount"),
-            _buildTextField(_discountController, hint: "0"),
+            _buildTextField(
+              _discountController,
+              hint: "0",
+              keyboard: const TextInputType.numberWithOptions(decimal: true),
+            ),
 
             _buildSectionLabel("Product Details"),
             _buildRichTextEditor(
@@ -465,6 +577,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               "Enter product story...",
               _productDetailsFocus,
             ),
+
             _buildSectionLabel("Specifications"),
             _buildRichTextEditor(
               _specificationsController,
@@ -472,9 +585,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               _specificationsFocus,
             ),
 
-
             const SizedBox(height: 16),
-
             InkWell(
               onTap: () =>
                   setState(() => _hallmarkAvailable = !_hallmarkAvailable),
@@ -492,7 +603,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 100),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -512,7 +623,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
           onPressed: () async {
             try {
               final productDao = ProductDao();
-
               final productId = (await productDao.generateNextProductId())
                   .toString();
               final imageUrls = await _uploadImages(productId);
@@ -534,9 +644,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 createdTimestamp: DateTime.now(),
                 modifiedTimestamp: DateTime.now(),
               );
-
               await productDao.addProduct(product);
-
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text("Product saved successfully")),
               );
@@ -547,7 +655,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
             }
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: primaryPurple,
+            backgroundColor: Colors.purple.shade900,
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 54),
             shape: RoundedRectangleBorder(
