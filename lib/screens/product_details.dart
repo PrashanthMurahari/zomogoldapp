@@ -465,7 +465,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
               "Enter product story...",
               _productDetailsFocus,
             ),
-
+            _buildSectionLabel("Specifications"),
             _buildRichTextEditor(
               _specificationsController,
               "Enter specifications...",
@@ -486,7 +486,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     onChanged: (v) => setState(() => _hallmarkAvailable = v!),
                   ),
                   const Text(
-                    "Hallmark available",
+                    "Hallmark Available",
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ],

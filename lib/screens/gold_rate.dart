@@ -6,6 +6,7 @@ import 'package:zomogoldapp/screens/product_details.dart';
 
 import '../dao/product_rate_dao.dart';
 import '../models/product_rate_model.dart';
+import 'history_screen.dart';
 
 const Color _kPrimaryColor = Color(0xFF673AB7);
 const Color _kBackgroundColor = Color(0xFFF3F0F9);
@@ -82,9 +83,6 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
   Future<void> _handleManualUpdate() async {
     final String enteredValue = _manualRateController.text.trim();
     final double? manualPrice = double.tryParse(enteredValue);
-    final double livePrice = selectedMetal == 'GOLD'
-        ? goldRawPrice
-        : silverRawPrice;
     if (manualPrice == null || manualPrice <= 0) {
       _showSnackBar('Please enter a valid rate');
       return;
@@ -227,7 +225,7 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
             child: Text(
               title,
               style: TextStyle(
-                color: isActive ? Colors.white : Colors.black54,
+                color: isActive ? Colors.white : Colors.black,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -313,7 +311,7 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
   Widget _buildRateCard(String metal, String price, String unit) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 10),
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -380,6 +378,27 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
           Text(
             updateTimestamp,
             style: const TextStyle(color: Colors.black54, fontSize: 12),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      PriceHistoryScreen(productType: selectedMetal),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kPrimaryColor,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              elevation: 2,
+            ),
+            child: const Text(
+              'View History',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
         ],
       ),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_quill/flutter_quill.dart';
+import 'package:zomogoldapp/screens/history_screen.dart';
 
 import 'screens/phone_login_screen.dart';
 import 'screens/gold_rate.dart';
@@ -17,7 +18,7 @@ Future<void> main() async {
         appId: "1:616832457082:web:9be2cc9543707eceff5ec3",
         messagingSenderId: "616832457082",
         projectId: "zomo-1f300",
-        storageBucket: "zomo-1f300.firebasestorage.app"
+        storageBucket: "zomo-1f300.firebasestorage.app",
       ),
     );
   } else {
@@ -43,9 +44,15 @@ class MyApp extends StatelessWidget {
       ],
       supportedLocales: const [Locale('en', 'US')],
       initialRoute: '/',
-
-      routes: {'/': (context) => const PhoneLoginScreen()},
-      // routes: {'/': (context) => const GoldRatesScreen()},
+      routes: {
+        '/': (context) => const PhoneLoginScreen(),
+        // '/': (context) => const GoldRatesScreen(),
+        '/history': (context) {
+          final String type =
+              ModalRoute.of(context)!.settings.arguments as String;
+          return PriceHistoryScreen(productType: type);
+        },
+      },
     );
   }
 }
