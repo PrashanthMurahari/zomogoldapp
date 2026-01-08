@@ -49,7 +49,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
   final FocusNode _specificationsFocus = FocusNode();
 
   bool _hallmarkAvailable = false;
-  String _weightUnit = 'Select';
+  String _weightUnit = 'Gram';
+  String _costUnit = 'Gram';
   String _makingChargeType = '%';
 
   @override
@@ -73,8 +74,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     _specificationsFocus.dispose();
     super.dispose();
   }
-
-
 
   Future<void> _pickNewImage() async {
     if (_extraImages.length >= maxImages) {
@@ -111,7 +110,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ),
       );
     }
-
   }
 
   void _removeImage(int index) {
@@ -487,10 +485,8 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 ),
                 const SizedBox(width: 12),
                 _buildDropdown(_weightUnit, [
-                  'Select',
                   'Gram',
                   'Carat',
-                  'Cents',
                   'Piece',
                 ], (v) => setState(() => _weightUnit = v!)),
               ],
@@ -509,13 +505,11 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                _buildDropdown(_weightUnit, [
-                  'Select',
+                _buildDropdown(_costUnit, [
                   'Gram',
                   'Carat',
-                  'Cents',
                   'Piece',
-                ], (v) => setState(() => _weightUnit = v!)),
+                ], (v) => setState(() => _costUnit = v!)),
               ],
             ),
 
@@ -534,7 +528,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 const SizedBox(width: 12),
                 _buildDropdown(_makingChargeType, [
                   '%',
-                  'Flat',
                 ], (v) => setState(() => _makingChargeType = v!)),
               ],
             ),
@@ -608,6 +601,9 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                 images: imageUrls,
                 metalName: _selectedMetal,
                 weight: _toDouble(_stoneWeightController),
+                cost: _toDouble(_stoneCostController),
+                weightUnit: _weightUnit,
+                costUnit: _costUnit,
                 purity: 0.0,
                 makingCharges: _toDouble(_makingChargesController),
                 discount: _toDouble(_discountController),

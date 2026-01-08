@@ -7,6 +7,9 @@ class ProductModel {
   final List<String> images;
   final String metalName;
   final double weight;
+  final double cost;
+  final String weightUnit;
+  final String costUnit;
   final double purity;
   final double makingCharges;
   final double discount;
@@ -25,6 +28,9 @@ class ProductModel {
     required this.images,
     required this.metalName,
     required this.weight,
+    required this.cost,
+    required this.weightUnit,
+    required this.costUnit,
     required this.purity,
     required this.makingCharges,
     required this.discount,
@@ -47,6 +53,9 @@ class ProductModel {
       images: List<String>.from(data["images"] ?? []),
       metalName: data["metalName"],
       weight: (data["weight"] ?? 0).toDouble(),
+      cost: (data["cost"] ?? 0).toDouble(),
+      weightUnit: data["weightUnit"],
+      costUnit: data["costUnit"],
       purity: (data["purity"] ?? 0).toDouble(),
       makingCharges: (data["makingCharges"] ?? 0).toDouble(),
       discount: (data["discount"] ?? 0).toDouble(),
@@ -70,6 +79,9 @@ class ProductModel {
       "images": images,
       "metalName": metalName,
       "weight": weight,
+      "cost": cost,
+      "weightUnit": weightUnit,
+      "costUnit": costUnit,
       "purity": purity,
       "makingCharges": makingCharges,
       "discount": discount,
