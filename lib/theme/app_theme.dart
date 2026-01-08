@@ -17,6 +17,7 @@ class AppColors {
   });
 
   static const Color background = Color(0xFFF2EDF9);
+  static const Color textColor = Color(0xB26750A4);
   static const Color textPrimary = Colors.black;
   static const Color textSecondary = Colors.grey;
 

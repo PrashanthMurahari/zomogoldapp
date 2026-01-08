@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:zomogoldapp/screens/search_screen.dart';
 
 MaterialColor createMaterialColor(Color color) {
   List strengths = <double>[.05];
@@ -56,7 +57,12 @@ class HomeScreen extends StatelessWidget {
         ),
         centerTitle: false,
         actions: <Widget>[
-          IconButton(icon: const Icon(Icons.search, color: Colors.black), onPressed: () {}),
+          IconButton(icon: const Icon(Icons.search, color: Colors.black), onPressed: () { Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => SearchScreen(),
+            ),
+          );}),
           IconButton(icon: const Icon(Icons.favorite_border, color: Colors.black), onPressed: () {}),
         ],
       ),

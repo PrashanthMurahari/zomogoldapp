@@ -52,6 +52,7 @@ class ProductDao {
               .toList(),
         );
   }
+
   Future<int> generateNextProductId() async {
     try {
       final ref = FirebaseFirestore.instance
@@ -69,5 +70,18 @@ class ProductDao {
       print("Debug Error: $e");
       return DateTime.now().millisecondsSinceEpoch;
     }
+  }
+
+  Future<double> getLatestRateByType(String productType) async {
+    final snap = await FirebaseFirestore.instance
+        .collection('product_rate')
+        .where('productType', isEqualTo: productType.toUpperCase())
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) return 0.0;
+
+    return (snap.docs.first['price'] as num).toDouble();
   }
 }
