@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -150,31 +151,25 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child:SizedBox(
               height: 280,
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: (index) {
-                  setState(() {
-                    selectedMetal = index == 0 ? 'GOLD' : 'SILVER';
-                  });
-                },
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildRateCard(
-                      'GOLD',
-                      goldPriceFormatted,
-                      'per 1g',
+              child: ScrollConfiguration(
+                behavior: const _WebScrollBehavior(),
+                child: PageView(
+                  onPageChanged: (index) {
+                    setState(() {
+                      selectedMetal = index == 0 ? 'GOLD' : 'SILVER';
+                    });
+                  },
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildRateCard('GOLD', goldPriceFormatted, 'per 1g'),
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _buildRateCard(
-                      'SILVER',
-                      silverPriceFormatted,
-                      'per KG',
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildRateCard('SILVER', silverPriceFormatted, 'per KG'),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -489,3 +484,14 @@ class _GoldRatesScreenState extends State<GoldRatesScreen> {
     return m[month];
   }
 }
+class _WebScrollBehavior extends MaterialScrollBehavior {
+  const _WebScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+  };
+}
+
