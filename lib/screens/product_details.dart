@@ -57,7 +57,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     super.initState();
     _productDetailsController = QuillController.basic();
     _specificationsController = QuillController.basic();
-    _startAutoSlide();
   }
 
   @override
@@ -75,20 +74,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     super.dispose();
   }
 
-  void _startAutoSlide() {
-    _autoSlideTimer?.cancel();
-    if (_extraImages.length <= 1) return;
 
-    _autoSlideTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (!_pageController.hasClients) return;
-      _currentPage = (_currentPage + 1) % _extraImages.length;
-      _pageController.animateToPage(
-        _currentPage,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
-      );
-    });
-  }
 
   Future<void> _pickNewImage() async {
     if (_extraImages.length >= maxImages) {
@@ -125,17 +111,7 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
         ),
       );
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_pageController.hasClients && _extraImages.isNotEmpty) {
-        _currentPage = _extraImages.length - 1;
-        _pageController.animateToPage(
-          _currentPage,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
-      }
-    });
-    _startAutoSlide();
+
   }
 
   void _removeImage(int index) {
@@ -151,7 +127,6 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
     if (_pageController.hasClients && _extraImages.isNotEmpty) {
       _pageController.jumpToPage(_currentPage);
     }
-    _startAutoSlide();
   }
 
   Widget _displayImage(dynamic img) {
